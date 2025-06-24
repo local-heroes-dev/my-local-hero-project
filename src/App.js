@@ -1,23 +1,30 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import HeroGrid from './components/HeroGrid';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import HeroSection from './components/HeroSection';
+import NominateForm from './components/NominateForm';
+
+
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Top navigation bar */}
+      <Navbar />
+      <HeroSection/>
+
+      
+
+      {/* Main content */}
+      <main className="flex-grow p-6">
+        <HeroGrid />
+        <NominateForm />
+      </main>
+      
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
