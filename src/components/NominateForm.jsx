@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import NominateHeroCard from './NominateHeroCard';
-import ImpactStoryStep from './ImpactStoryStep';
-import PhotoReviewStep from './PhotoReviewStep';
-import { saveHero } from '../utils/storage';
+import React, { useState } from "react";
+import NominateHeroCard from "./NominateHeroCard";
+import ImpactStoryStep from "./ImpactStoryStep";
+import PhotoReviewStep from "./PhotoReviewStep";
+// import { saveHero } from '../utils/storage';
 
 const NominateForm = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    heroName: '',
-    location: '',
-    impactArea: '',
-    shortDescription: '',
-    fullStory: '',
-    tags: '',
+    heroName: "",
+    location: "",
+    impactArea: "",
+    shortDescription: "",
+    fullStory: "",
+    tags: "",
     photo: null,
   });
 
@@ -28,15 +28,15 @@ const NominateForm = () => {
       id: Date.now().toString(),
       ...formData,
     };
-    saveHero(newHero);
-    alert('Hero nomination submitted successfully!');
+    // saveHero(newHero);
+    alert("Hero nomination submitted successfully!");
     setFormData({
-      heroName: '',
-      location: '',
-      impactArea: '',
-      shortDescription: '',
-      fullStory: '',
-      tags: '',
+      heroName: "",
+      location: "",
+      impactArea: "",
+      shortDescription: "",
+      fullStory: "",
+      tags: "",
       photo: null,
     });
     setStep(1);

@@ -1,5 +1,9 @@
-// src/components/Footer.jsx
-import { FaFacebookF, FaXTwitter, FaInstagram, FaYoutube } from "react-icons/fa6";
+import {
+  FaFacebookF,
+  FaXTwitter,
+  FaInstagram,
+  FaYoutube,
+} from "react-icons/fa6";
 
 const Footer = () => {
   return (
@@ -9,7 +13,8 @@ const Footer = () => {
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Local Heroes</h2>
           <p className="text-gray-400 text-sm">
-            Celebrating everyday people making extraordinary differences in their communities. Join us in recognizing the heroes around us.
+            Celebrating everyday people making extraordinary differences in
+            their communities. Join us in recognizing the heroes around us.
           </p>
           <div className="flex gap-3 mt-4 text-xl text-white">
             <FaFacebookF className="hover:text-orange-500 cursor-pointer" />
@@ -69,7 +74,8 @@ const Footer = () => {
 
       {/* Bottom Bar */}
       <div className="border-t border-gray-700 py-4 text-center text-gray-400 text-sm px-4">
-        © 2024 Local Heroes. All rights reserved. Made with ❤️ for communities everywhere.
+        © 2024 Local Heroes. All rights reserved. Made with ❤️ for communities
+        everywhere.
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="block mx-auto mt-2 text-orange-400 hover:underline"
