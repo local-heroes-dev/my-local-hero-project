@@ -4,7 +4,16 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-   optimizeDeps: {
+  optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://localheroes.vercel.app',
+        changeOrigin: true,
+        secure: true,
+      }
+    }
+  }
 })

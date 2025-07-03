@@ -1,5 +1,5 @@
 // File: Register.js
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,9 +8,8 @@ import { registerSchema } from "../schema/authSchema";
 import { register as registerAccount } from "../store/slices/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { TbWashDryP } from "react-icons/tb";
 const Register = () => {
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const {
@@ -21,18 +20,25 @@ const Register = () => {
     resolver: zodResolver(registerSchema),
   });
 
+
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/nominate");
+    }
+  }, [isAuthenticated, navigate]);
+
   const onSubmit = async (data) => {
     try {
       await dispatch(registerAccount(data));
-      navigate("/");
-    } catch (error) {
-      return error.message;
+    } catch (err) {
+      console.error("register failed", err);
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center py-10">
-      <Link to="/" className="text-orange-500 text-sm mb-2">
+      <Link to="/login" className="text-orange-500 text-sm mb-2">
         &larr; Back to Login
       </Link>
       <div className="bg-white rounded-lg shadow-md p-8 w-full max-w-md">
@@ -78,11 +84,17 @@ const Register = () => {
               </p>
             )}
           </div>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
           <button
             type="submit"
-            className="w-full py-2 rounded bg-gradient-to-r from-orange-500 to-red-500 text-white"
+            className="w-full py-2 rounded bg-gradient-to-r from-orange-500 to-red-500 text-white disabled:opacity-50"
+            disabled={loading}
           >
-            Sign Up
+            {loading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
         <p className="text-sm text-center mt-4">

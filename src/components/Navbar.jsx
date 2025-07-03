@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
@@ -13,9 +13,18 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login");
+  useEffect(() => {
+    if (!isAuthenticated && pathname !== "/login" && pathname !== "/register") {
+      navigate("/login");
+    }
+  }, [isAuthenticated, pathname, navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout());
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (
@@ -30,54 +39,52 @@ const Navbar = () => {
         </div>
 
         {/* Desktop Links */}
-        <div>
+        <div className="hidden md:flex space-x-6">
+          <Link
+            to="/"
+            className={`text-gray-700 hover:text-orange-600 font-medium  ${
+              pathname === "/"
+                ? "bg-orange-100 py-2 px-4 rounded-md  text-orange-700"
+                : "hover:bg-gray-100 py-2 px-4 rounded-md text-gray-700"
+            }`}
+          >
+            Heroes
+          </Link>
+          <Link
+            to="/nominate"
+            className={`text-gray-700 hover:text-orange-600 font-medium ${
+              pathname === "/nominate"
+                ? "bg-orange-100 py-2 px-4 rounded-md  text-orange-700"
+                : "hover:bg-gray-100 py-2 px-4 rounded-md text-gray-700"
+            }`}
+          >
+            Nominate
+          </Link>
+        </div>
+        {/* Sign In Button */}
+        <div className="hidden  md:block">
           {isAuthenticated ? (
             <>
-              <div className="hidden md:flex space-x-6">
-                <Link
-                  to="/"
-                  className={`text-gray-700 hover:text-orange-600 font-medium  ${
-                    pathname === "/"
-                      ? "bg-orange-100 py-2 px-4 rounded-md  text-orange-700"
-                      : "hover:bg-gray-100 py-2 px-4 rounded-md text-gray-700"
-                  }`}
-                >
-                  Heroes
-                </Link>
-                <Link
-                  to="/nominate"
-                  className={`text-gray-700 hover:text-orange-600 font-medium ${
-                    pathname === "/nominate"
-                      ? "bg-orange-100 py-2 px-4 rounded-md  text-orange-700"
-                      : "hover:bg-gray-100 py-2 px-4 rounded-md text-gray-700"
-                  }`}
-                >
-                  Nominate
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:bg-gray-100 text-gray-700"
-                >
-                  <LogOut size={18} />
-                  <span>Logout</span>
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:bg-gray-100 text-gray-700"
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </button>
             </>
           ) : (
             <>
-              {/* Sign In Button */}
-              <div className="hidden  md:block">
-                <Link to="/login">
-                  <button className="bg-orange-500 text-white px-4 py-2 mx-6 rounded-md hover:bg-orange-600 text-sm">
-                    Log In
-                  </button>
-                </Link>
-                <Link to="/register">
-                  <button className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-orange-600 text-sm">
-                    Register
-                  </button>
-                </Link>
-              </div>
+              <Link to="/login">
+                <button className="bg-orange-500 text-white px-4 py-2 mx-6 rounded-md hover:bg-orange-600 text-sm">
+                  Log In
+                </button>
+              </Link>
+              <Link to="/register">
+                <button className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-orange-600 text-sm">
+                  Register
+                </button>
+              </Link>
             </>
           )}
         </div>

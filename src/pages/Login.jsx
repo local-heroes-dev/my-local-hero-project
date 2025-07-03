@@ -1,4 +1,4 @@
-import React, { useDebugValue } from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,12 +20,17 @@ const Login = () => {
     resolver: zodResolver(loginSchema),
   });
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/nominate");
+    }
+  }, [isAuthenticated, navigate]);
+
   const onSubmit = async (data) => {
     try {
       await dispatch(loginAccount(data));
-      navigate("/nominate");
     } catch (err) {
-      console.error("Unexpected login error:", err);
+      console.error("Login failed:", err);
     }
   };
 
@@ -91,9 +96,14 @@ const Login = () => {
               </p>
             )}
           </div>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
           <button
             type="submit"
-            className="w-full py-2 rounded bg-gradient-to-r from-orange-500 to-red-500 text-white"
+            className="w-full py-2 rounded bg-gradient-to-r from-orange-500 to-red-500 text-white disabled:opacity-50"
             disabled={loading}
           >
             {loading ? "Logging in..." : "Login"}

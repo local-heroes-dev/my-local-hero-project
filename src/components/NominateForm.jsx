@@ -3,7 +3,8 @@ import NominateHeroCard from "./NominateHeroCard";
 import ImpactStoryStep from "./ImpactStoryStep";
 import PhotoReviewStep from "./PhotoReviewStep";
 // import { saveHero } from '../utils/storage';
-
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 const NominateForm = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -44,6 +45,23 @@ const NominateForm = () => {
 
   return (
     <div>
+      <div className="max-w-2xl mx-auto  p-6 mt-10 space-y-4">
+        <Link to="/" className="text-orange-500  flex items-center">
+          {" "}
+          <ArrowLeft size={18} />
+          <span>Back to Heroes</span>
+        </Link>
+        <div className="text-center gap-1">
+          <p className="text-orange-700 bg-orange-100 ml-48 mr-48 p-1 rounded-lg">
+            Celebrate Community Impact
+          </p>
+          <h1 className="text-4xl font-bold m-2">Nominate a Local Hero</h1>
+          <p className="text-lg">
+            Help us celebrate someone making a positive impact in your
+            community. <br></br>Every hero deserves recognition.
+          </p>
+        </div>
+      </div>
       {step === 1 && (
         <NominateHeroCard
           formData={formData}

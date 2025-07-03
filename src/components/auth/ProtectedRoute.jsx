@@ -16,16 +16,16 @@ const ProtectedRoute = ({ children, requireAuth }) => {
     );
   }
 
-  // TODO: If route requires authentication and user is not authenticated, redirect to login
-
+  // If route requires authentication and user is not authenticated, redirect to login
   if (requireAuth && !isAuthenticated) {
-    <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace />;
   }
-  //TODO: If route requires unauthenticated user and user is authenticated, redirect to notes
-
+  
+  // If route requires unauthenticated user and user is authenticated, redirect to nominate
   if (!requireAuth && isAuthenticated) {
-    <Navigate to="/" replace />;
+    return <Navigate to="/nominate" replace />;
   }
+  
   // Otherwise, render the children
   return children;
 };
