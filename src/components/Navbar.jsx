@@ -64,7 +64,10 @@ const Navbar = () => {
         {/* Sign In Button */}
         <div className="hidden  md:block">
           {isAuthenticated ? (
-            <>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600 font-medium">
+                Hello, {user?.name || user?.username || "User"}
+              </span>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:bg-gray-100 text-gray-700"
@@ -72,7 +75,7 @@ const Navbar = () => {
                 <LogOut size={18} />
                 <span>Logout</span>
               </button>
-            </>
+            </div>
           ) : (
             <>
               <Link to="/login">
