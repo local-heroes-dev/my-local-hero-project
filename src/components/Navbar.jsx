@@ -13,12 +13,6 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
-  useEffect(() => {
-    if (!isAuthenticated && pathname !== "/login" && pathname !== "/register") {
-      navigate("/login");
-    }
-  }, [isAuthenticated, pathname, navigate]);
-
   const handleLogout = async () => {
     try {
       await dispatch(logout());
@@ -68,6 +62,7 @@ const Navbar = () => {
               <span className="text-sm text-gray-600 font-medium">
                 Hello, {user?.name || user?.username || "User"}
               </span>
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:bg-gray-100 text-gray-700"
@@ -131,11 +126,35 @@ const Navbar = () => {
         >
           Nominate
         </Link>
-        <Link to="/login">
-          <button className="w-full bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 text-sm mt-2">
-            log In
-          </button>
-        </Link>
+        {!isAuthenticated && (
+          <>
+            <Link to="/login">
+              <button className="w-full bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 text-sm mt-2">
+                Log In
+              </button>
+            </Link>
+            <Link to="/register">
+              <button className="w-full bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 text-sm mt-2">
+                Register
+              </button>
+            </Link>
+          </>
+        )}
+        {isAuthenticated && (
+          <div className="mt-2">
+            <span className="block text-sm text-gray-600 font-medium mb-2">
+              Hello, {user?.name || user?.username || "User"}
+            </span>
+
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors hover:bg-gray-100 text-gray-700"
+            >
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -86,15 +86,35 @@ export const deleteHero = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${BASE_URL}/api/heroes/${id}` , {
+      console.log('Attempting to delete hero with ID:', id);
+      console.log('Using token:', token ? 'Token exists' : 'No token');
+      
+      // Use proxy URL to avoid CORS issues in development
+      const deleteUrl = `${BASE_URL}/api/heroes/${id}`;
+      
+      console.log('Full URL:', deleteUrl);
+      
+      const res = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
         },
       });
-      if (!res.ok) throw new Error(await res.text());
+      
+      console.log('Delete response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Delete error response:', errorText);
+        console.error('Response headers:', Object.fromEntries(res.headers.entries()));
+        throw new Error(errorText);
+      }
+      
+      console.log('Hero deleted successfully');
       return id;
     } catch (error) {
+      console.error('Delete hero error:', error);
       return rejectWithValue(error.message || "Failed to delete hero");
     }
   }
@@ -128,15 +148,43 @@ export const thankHero = createAsyncThunk(
   async (heroId, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${BASE_URL}/api/heroes/${heroId}/thank`, {
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const url = `${BASE_URL}/api/heroes/${heroId}/thank`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
+      
       const responseText = await res.text();
-      if (!res.ok) throw new Error(responseText);
-      return JSON.parse(responseText);
+      
+      if (!res.ok) {
+        // Try to parse error response as JSON if possible
+        let errorMessage = responseText;
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorMessage = errorJson.message || errorJson.error || responseText;
+        } catch (e) {
+          // If not JSON, use the text as is
+          errorMessage = responseText;
+        }
+        
+        throw new Error(`Server error (${res.status}): ${errorMessage}`);
+      }
+      
+      // Try to parse successful response
+      try {
+        return JSON.parse(responseText);
+      } catch (e) {
+        // If response is not JSON, return a success object
+        return { success: true, message: responseText };
+      }
     } catch (error) {
       return rejectWithValue(error.message || "Failed to thank hero");
     }
@@ -264,6 +312,10 @@ const heroesSlice = createSlice({
         state.loading = false;
         state.heroes = state.heroes.filter(h => h.id !== action.payload);
         state.userHeroes = state.userHeroes.filter(h => h.id !== action.payload);
+        // Clear current hero if it was deleted
+        if (state.currentHero && state.currentHero.id === action.payload) {
+          state.currentHero = null;
+        }
       })
       .addCase(deleteHero.rejected, (state, action) => {
         state.loading = false;
@@ -289,7 +341,23 @@ const heroesSlice = createSlice({
       })
       .addCase(thankHero.fulfilled, (state, action) => {
         state.loading = false;
-        // Optionally update thanks count in currentHero or heroes
+        // Update thanks count in currentHero if it exists
+        if (state.currentHero && action.payload) {
+          // Create a new object to avoid mutation
+          state.currentHero = {
+            ...state.currentHero,
+            thanks_count: action.payload.total || (state.currentHero.thanks_count || 0) + 1,
+            user_thanked: true
+          };
+        }
+        // Also update in the heroes list if the hero exists there
+        const heroIndex = state.heroes.findIndex(h => h._id === action.payload?.hero_id || h.id === action.payload?.hero_id);
+        if (heroIndex !== -1 && action.payload) {
+          state.heroes[heroIndex] = {
+            ...state.heroes[heroIndex],
+            thanks_count: action.payload.total || (state.heroes[heroIndex].thanks_count || 0) + 1
+          };
+        }
       })
       .addCase(thankHero.rejected, (state, action) => {
         state.loading = false;

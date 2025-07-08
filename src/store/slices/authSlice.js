@@ -156,6 +156,8 @@ export const logout = createAsyncThunk(
   }
 );
 
+
+
 const initialState = {
   user: null,
   isAuthenticated: false,
@@ -245,6 +247,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+
+
   },
 });
 

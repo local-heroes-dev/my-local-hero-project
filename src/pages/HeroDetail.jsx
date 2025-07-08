@@ -1,26 +1,61 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   fetchHero,
   addComment,
   thankHero,
+  deleteHero,
 } from "../store/slices/heroesSlice";
+import LoginPrompt from "../components/LoginPrompt";
 
 const HeroDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { currentHero, comments, loading, error } = useSelector((state) => state.heroes);
-  const { user } = useSelector((state) => state.auth);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
   const [commentText, setCommentText] = useState("");
   const [thanksGiven, setThanksGiven] = useState(false);
   const [thankError, setThankError] = useState("");
   const [imageError, setImageError] = useState(false);
   const [userCache, setUserCache] = useState({});
+  const [showThankLoginPrompt, setShowThankLoginPrompt] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showOwnershipError, setShowOwnershipError] = useState(false);
+  const [showAlreadyThankedMessage, setShowAlreadyThankedMessage] = useState(false);
+  
+  // Check if user has already thanked this hero - comprehensive check
+  const hasUserThanked = currentHero?.thanked_by?.includes(user?._id) || 
+                        currentHero?.thanked_by?.includes(user?.id) ||
+                        currentHero?.user_thanked === true ||
+                        currentHero?.thanked_by_user === true ||
+                        currentHero?.user_has_thanked === true ||
+                        currentHero?.current_user_thanked === true;
+  
+  // Check localStorage for thank state as fallback
+  const getThankedFromStorage = () => {
+    if (!user?._id || !currentHero?._id) return false;
+    const thankedHeroes = JSON.parse(localStorage.getItem('thankedHeroes') || '{}');
+    return thankedHeroes[`${user._id}_${currentHero._id}`] === true;
+  };
+  
+  const setThankedInStorage = (heroId, userId) => {
+    const thankedHeroes = JSON.parse(localStorage.getItem('thankedHeroes') || '{}');
+    thankedHeroes[`${userId}_${heroId}`] = true;
+    localStorage.setItem('thankedHeroes', JSON.stringify(thankedHeroes));
+  };
+  
+  // Final check including localStorage
+  const finalHasUserThanked = hasUserThanked || getThankedFromStorage();
+  
+
 
   useEffect(() => {
     dispatch(fetchHero(id));
   }, [dispatch, id]);
+
+
 
   // Initialize user cache with current user
   useEffect(() => {
@@ -76,25 +111,105 @@ const HeroDetail = () => {
   const handleComment = (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
+    
+    if (!isAuthenticated) {
+      // Navigate to login page instead of showing alert
+      navigate('/login');
+      return;
+    }
+    
     dispatch(addComment({ heroId: id, text: commentText })).then(() => {
       setCommentText("");
     });
   };
 
   const handleThank = async () => {
-    setThankError("");
-    const result = await dispatch(thankHero(id));
-    if (result.meta.requestStatus === 'fulfilled') {
+    try {
+      if (!isAuthenticated) {
+        setShowThankLoginPrompt(true);
+        return;
+      }
+      if (finalHasUserThanked) {
+        setShowAlreadyThankedMessage(true);
+        setTimeout(() => setShowAlreadyThankedMessage(false), 5000);
+        return;
+      }
+      setThankError("");
+      setShowAlreadyThankedMessage(false);
+      const result = await dispatch(thankHero(id));
+      if (result.meta.requestStatus === 'fulfilled') {
+        setThanksGiven(true);
+        if (user?._id) {
+          setThankedInStorage(id, user._id);
+        }
+      } else {
+        // For any error, show the 'already thanked' message
+        setShowAlreadyThankedMessage(true);
+        setTimeout(() => setShowAlreadyThankedMessage(false), 5000);
+        setThanksGiven(true);
+      }
+    } catch (error) {
+      setShowAlreadyThankedMessage(true);
+      setTimeout(() => setShowAlreadyThankedMessage(false), 5000);
       setThanksGiven(true);
-    } else if (result.payload && result.payload.includes('Already thanked')) {
-      setThankError("You have already thanked this hero. You cannot thank twice.");
-    } else if (result.error && result.error.message) {
-      setThankError(result.error.message);
     }
   };
 
   const handleImageError = () => {
     setImageError(true);
+  };
+
+  // Helper function to validate image URL
+  const isValidImageUrl = (url) => {
+    if (!url) return false;
+    // Check if URL is valid and not a placeholder
+    return url.startsWith('http') && 
+           !url.includes('example.com') && 
+           !url.includes('placeholder') &&
+           url.length > 10;
+  };
+
+  const handleDelete = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    // Check if user is the creator of the hero
+    // We'll check for common ownership fields
+    const isOwner = currentHero.created_by === user?._id || 
+                   currentHero.user_id === user?._id || 
+                   currentHero.created_by_id === user?._id ||
+                   currentHero.creator_id === user?._id;
+
+    if (!isOwner) {
+      setShowOwnershipError(true);
+      // Hide the error message after 5 seconds
+      setTimeout(() => setShowOwnershipError(false), 5000);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${currentHero.full_name}?\n\n` +
+      `This hero has ${comments.length} comments and ${currentHero.thanks_count || 0} thanks.\n` +
+      `This action cannot be undone.`
+    );
+
+    if (confirmed) {
+      try {
+        const result = await dispatch(deleteHero(id));
+        
+        if (result.meta.requestStatus === 'fulfilled') {
+          navigate('/');
+        } else if (result.error) {
+          alert(`Failed to delete hero: ${result.error.message || 'Unknown error'}`);
+        } else {
+          alert("Failed to delete hero. Please try again.");
+        }
+      } catch (error) {
+        alert("An error occurred while deleting the hero.");
+      }
+    }
   };
 
   // Helper function to get user display info
@@ -166,7 +281,8 @@ const HeroDetail = () => {
   };
 
   if (loading) return <div className="text-center py-10">Loading hero...</div>;
-  if (error) return <div className="text-center text-red-500 py-10">Error: {error}</div>;
+  // Only show error if hero failed to load
+  if (error && !currentHero) return <div className="text-center text-red-500 py-10">Error: {error}</div>;
   if (!currentHero) return null;
 
   return (
@@ -174,19 +290,41 @@ const HeroDetail = () => {
       {/* Hero Banner */}
       <div className="relative">
         <img
-          src={imageError || !currentHero.photo_url ? "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDYwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjMwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiM5Q0EzQUYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5IZXJvIEltYWdlPC90ZXh0Pgo8L3N2Zz4K" : currentHero.photo_url}
+          src={imageError || !isValidImageUrl(currentHero.photo_url) ? "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDYwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjMwMCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiM5Q0EzQUYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5IZXJvIEltYWdlPC90ZXh0Pgo8L3N2Zz4K" : currentHero.photo_url}
           alt={currentHero.full_name}
           className="w-full h-64 object-cover object-center"
           onError={handleImageError}
         />
         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-6">
-          <h2 className="text-3xl font-bold text-white mb-1">{currentHero.full_name}</h2>
-          <div className="flex items-center gap-4 text-white text-sm">
-            <span className="flex items-center gap-1">
-              <svg className="w-4 h-4 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              {currentHero.location}
-            </span>
-            {/* Optionally add created_at date here if available */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-1">{currentHero.full_name}</h2>
+              <div className="flex items-center gap-4 text-white text-sm">
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  {currentHero.location}
+                </span>
+                {/* Optionally add created_at date here if available */}
+              </div>
+            </div>
+            {/* Delete button - only show if user is authenticated and is the creator */}
+            {isAuthenticated && (
+              currentHero.created_by === user?.id || 
+              currentHero.user_id === user?.id || 
+              currentHero.created_by_id === user?.id ||
+              currentHero.creator_id === user?.id
+            ) && (
+              <button
+                onClick={handleDelete}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1"
+                title="Delete this hero"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -199,18 +337,93 @@ const HeroDetail = () => {
         </div>
         <h3 className="text-lg font-semibold mb-2">Their Impact Story</h3>
         <p className="text-gray-700 mb-4">{currentHero.story}</p>
-        <div className="flex items-center gap-4 mb-6">
-          <span className="text-pink-500 font-bold text-lg">{currentHero.thanks_count || 0}</span>
-          <span className="text-gray-500 text-sm">people have thanked {currentHero.full_name}</span>
-          <button
-            className="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600 text-sm"
-            onClick={handleThank}
-            disabled={thanksGiven}
-          >
-            {thanksGiven ? "Thanked!" : "Say Thanks"}
-          </button>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <span className="text-pink-500 font-bold text-lg">{currentHero.thanks_count || 0}</span>
+            <span className="text-gray-500 text-sm">people have thanked {currentHero.full_name}</span>
+            {isAuthenticated ? (
+              <div className="flex gap-2">
+                <button
+                                  className={`px-4 py-2 rounded text-sm transition-colors ${
+                  thanksGiven || finalHasUserThanked
+                    ? 'bg-green-500 text-white cursor-default' 
+                    : 'bg-pink-500 text-white hover:bg-pink-600'
+                }`}
+                onClick={handleThank}
+                disabled={thanksGiven || finalHasUserThanked}
+              >
+                {thanksGiven || finalHasUserThanked ? (
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Thanked!
+                    </span>
+                  ) : (
+                    "Say Thanks"
+                  )}
+                </button>
+              </div>
+            ) : (
+              <button
+                className="bg-gray-400 text-white px-4 py-2 rounded text-sm cursor-not-allowed"
+                onClick={handleThank}
+              >
+                Log in to Thank
+              </button>
+            )}
+          </div>
+          {/* Delete button in details section */}
+          {isAuthenticated && (
+            currentHero.created_by === user?.id || 
+            currentHero.user_id === user?.id || 
+            currentHero.created_by_id === user?.id ||
+            currentHero.creator_id === user?.id
+          ) && (
+            <button
+              onClick={handleDelete}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+              title="Delete this hero"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Hero
+            </button>
+          )}
         </div>
-        {thankError && <div className="text-red-500 mb-4">{thankError}</div>}
+        {showThankLoginPrompt && (
+          <LoginPrompt 
+            message="Please log in to thank this hero and show your appreciation!" 
+            showButtons={true}
+          />
+        )}
+        {showOwnershipError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div>
+                <h3 className="text-red-800 font-medium">Permission Denied</h3>
+                <p className="text-red-700 text-sm">You can only delete heroes that you nominated. This hero was created by another user.</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {showAlreadyThankedMessage && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-blue-800 font-medium">Already Thanked</h3>
+                <p className="text-blue-700 text-sm">You have already thanked this hero. Thank you for your appreciation!</p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Comments Section */}
         <div className="mt-8 border-t pt-6">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">
@@ -218,34 +431,38 @@ const HeroDetail = () => {
           </h3>
           
           {/* Comment Form */}
-          <form onSubmit={handleComment} className="mb-6">
-            <div className="flex gap-3">
-              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {user ? (user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()) : 'U'}
-              </div>
-              <div className="flex-1">
-                <textarea
-                  value={commentText}
-                  onChange={e => setCommentText(e.target.value)}
-                  placeholder={`Share your thoughts about ${currentHero.full_name}'s incredible impact...`}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-700 resize-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows="3"
-                />
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs text-gray-500">
-                    {commentText.length}/500 characters
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={!commentText.trim()}
-                    className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                  >
-                    Post Comment
-                  </button>
+          {isAuthenticated ? (
+            <form onSubmit={handleComment} className="mb-6">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                  {user ? (user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()) : 'U'}
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    placeholder={`Share your thoughts about ${currentHero.full_name}'s incredible impact...`}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-700 resize-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    rows="3"
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-gray-500">
+                      {commentText.length}/500 characters
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={!commentText.trim()}
+                      className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                    >
+                      Post Comment
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </form>
+            </form>
+          ) : (
+            <LoginPrompt message="Please log in to comment on this hero and share your thoughts!" />
+          )}
 
           {/* Comments List */}
           <div className="space-y-4">

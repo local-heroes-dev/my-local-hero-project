@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import HeroesPage from "./pages/HeroesPage";
 import NominatePage from "./pages/NominatePage";
 import Register from "./pages/Register";
+import AboutUs from "./pages/AboutUs";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { checkAuthStatus } from "./store/slices/authSlice";
 import HeroDetail from "./pages/HeroDetail";
@@ -51,7 +52,9 @@ const App = () => {
               </ProtectedRoute>
             } 
           />
+
           <Route path="/heroes/:id" element={<HeroDetail />} />
+          <Route path="/about" element={<AboutUs />} />
         </Routes>
         <Footer />
       </div>
